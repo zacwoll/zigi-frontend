@@ -14,7 +14,7 @@ export const TaskBoard: React.FC = () => {
     setLoading(true);
     fetch("/api/tasks")
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);       
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
       .then((data) => {
@@ -28,14 +28,33 @@ export const TaskBoard: React.FC = () => {
       });
   }, []);
 
-  // Mark Task as complete
-  const markComplete = (task_id: string) => {
+  // Mark Task as completed
+  const markComplete = async (task_id: string) => {
+    try {
+      await fetch(`/api/tasks/${task_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "completed" }),
+      });
+    } catch {
+      // ignore
+    }
     console.log(`${task_id} marked complete`);
   };
 
-  const markFailed = (task_id: string) => {
-    console.log(`${task_id} marked complete`);    
-  }
+  // Mark Task as failed
+  const markFailed = async (task_id: string) => {
+    try {
+      await fetch(`/api/tasks/${task_id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "failed" }),
+      });
+    } catch {
+      // ignore
+    }
+    console.log(`${task_id} marked failed`);
+  };
 
   // Compute visible lists:
 
@@ -60,26 +79,26 @@ export const TaskBoard: React.FC = () => {
   if (loading) return <div className="tasks-loading">Loading tasks…</div>;
   if (error) return <div className="tasks-error">Error: {error}</div>;
 
-return (
-  <div
-    id="tasks-container"
-    className="flex flex-col md:flex-row grow gap-4 h-full max-w-[75%] w-full min-h-[80vh] bg-white shadow-xl rounded-2xl border border-slate-200 p-6 md:p-10"
-  >
-    <TaskColumn
-      title="Active Tasks"
-      tasks={activeTasks}
-      emptyMessage="No active tasks"
-      onComplete={markComplete}
-      onFail={markFailed}
-      className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
-    />
+  return (
+    <div
+      id="tasks-container"
+      className="flex flex-col md:flex-row grow gap-4 h-full max-w-[75%] w-full min-h-[80vh] bg-white shadow-xl rounded-2xl border border-slate-200 p-6 md:p-10"
+    >
+      <TaskColumn
+        title="Active Tasks"
+        tasks={activeTasks}
+        emptyMessage="No active tasks"
+        onComplete={markComplete}
+        onFail={markFailed}
+        className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
+      />
 
-    <TaskColumn
-      title="Recent Tasks"
-      tasks={recentTasks}
-      emptyMessage="No recent tasks"
-      className="flex-1 md:flex-[1_1_0%] bg-pink-50/60"
-    />
-  </div>
-);
+      <TaskColumn
+        title="Recent Tasks"
+        tasks={recentTasks}
+        emptyMessage="No recent tasks"
+        className="flex-1 md:flex-[1_1_0%] bg-pink-50/60"
+      />
+    </div>
+  );
 };
