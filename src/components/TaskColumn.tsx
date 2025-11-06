@@ -6,6 +6,7 @@ interface TaskColumnProps {
   tasks: Task[];
   emptyMessage?: string;
   onComplete?: (task_id: string) => void;
+  onFail?: (task_id: string) => void;
   className?: string;
 }
 

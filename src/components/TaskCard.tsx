@@ -1,5 +1,6 @@
 import type { Task } from "../types";
 import { Check, X } from "lucide-react";
+import { capitalize, isComplete } from "../utils";
 
 interface TaskCardProps {
 	task: Task;
@@ -8,10 +9,8 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onComplete, onFail }: TaskCardProps) {
-	const isRecent =
-		task.status !== "completed" &&
-		task.status !== "failed" &&
-		task.status !== "expired";
+  // Task is in 'Recent Tasks' if complete
+	const isRecentTask = isComplete(task.status);
 
 let cardBg: string;
 if (task.status === "completed") {
@@ -45,7 +44,7 @@ if (task.status === "completed") {
           </h3>
 
           {/* Show points to the right of the title for active tasks */}
-          {isRecent && (
+          {!isRecentTask && (
             <div className="flex gap-2 items-center">
               <span className="bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs font-medium">
                 +{task.success_points}
@@ -58,7 +57,7 @@ if (task.status === "completed") {
         </div>
 
         {/* Done/Fail buttons */}
-        {isRecent && (
+        {!isRecentTask && (
           <>
             <div className="flex gap-2">
               <button
@@ -126,16 +125,16 @@ if (task.status === "completed") {
       )}
 
       {/* Status */}
+      {isRecentTask && (
       <div className="flex items-center justify-between mt-2">
-        {!isRecent && (
           <span className="py-1 font-semibold text-sm md:text-base">
             {statusText}
           </span>
-        )}
       </div>
+      )}
 
       {/* Dates */}
-      <div className="flex justify-between text-gray-500 text-xs mt-2">
+      <div className="flex justify-between text-gray-500 text-xs">
         {/* Always show created at */}
         <span>Created: {new Date(task.created_at).toDateString()}</span>
 
@@ -152,10 +151,4 @@ if (task.status === "completed") {
       </div>
     </div>
   );
-}
-
-// Utility Function
-function capitalize(str: string) {
-  if (!str) return "";
-  return str.charAt(0).toUpperCase() + str.slice(1);
 }

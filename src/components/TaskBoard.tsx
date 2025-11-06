@@ -1,15 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { type Task } from "../types";
 import { TaskColumn } from "./TaskColumn";
-
-/*
-  24 hours in milliseconds:
-  24 * 60 = 1440
-  1440 * 60 = 86400
-  86400 * 1000 = 86400000
-*/
-// Last 24 hrs of Tasks
-const RECENT_MS = 24 * 60 * 60 * 1000; // 86,400,000 ms
+import { isComplete } from "../utils";
 
 // Tasks Component
 export const TaskBoard: React.FC = () => {
@@ -22,11 +14,11 @@ export const TaskBoard: React.FC = () => {
     setLoading(true);
     fetch("/api/tasks")
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);       
         return res.json();
       })
-      .then((data: Task[]) => {
-        // console.log("Fetched tasks:", data);
+      .then((data) => {
+        console.log("Fetched tasks:", JSON.stringify(data, null, 2));
         setTasks(data);
         setLoading(false);
       })
@@ -36,52 +28,32 @@ export const TaskBoard: React.FC = () => {
       });
   }, []);
 
-  // // Helpers to persist updates to the backend (best-effort)
-  // const persist = async (taskId: string) => {
-    //   // best-effort; ignore network failures for UX responsiveness
-    //   try {
-      //     await fetch(`/api/tasks/${taskId}`, {
-        //       method: "PATCH",
-        //       headers: { "Content-Type": "application/json" },
-        //       body: JSON.stringify(patch),
-        //     });
-        //   } catch {
-          //     // ignore - we still update local state optimistically
-          //   }
-          // };
-          
-  // TODO: Implement MarkComplete
   // Mark Task as complete
   const markComplete = (task_id: string) => {
     console.log(`${task_id} marked complete`);
-	// // Target the included tag and mark it as completed
-  //   const updated: Task = {
-  //     ...task,
-  //     status: "completed",
-  //   };
-	// // Update the UI to reflect the completed status
-  //   setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-	// // Persist the change in the database
-  //   persist(task.id, { status: "completed" });
   };
 
-//   const undoTask = (task: Task) => {
-//     // Put back to active (undo completion or failure)
-//     const updated: Task = { ...task, status: "active", timestamp: undefined };
-//     setTasks((prev) => prev.map((t) => (t.id === task.id ? updated : t)));
-//     persist(task.id, { status: "active", timestamp: null });
-//   };
+  const markFailed = (task_id: string) => {
+    console.log(`${task_id} marked complete`);    
+  }
 
   // Compute visible lists:
-  const now = Date.now();
-  const activeTasks = tasks.filter((t) => t.status === "in-progress");
 
+  // Active tasks are tasks that are incomplete
+  const activeTasks = tasks.filter((t) => !isComplete(t.status));
+
+  // Recent tasks are tasks that have been completed in RECENT_MS
   const recentTasks = tasks.filter((t) => {
-    if (t.status !== "completed" &&
-		t.status !== "failed" &&
-		t.status !== "expired") return false;
+    // Not Complete Tasks are filtered out
+    if (!isComplete(t.status)) return false;
+    // A task is complete when it has a completed_at timestamp
     if (!t.completed_at) return false;
-	const completedAt = new Date(t.completed_at).getTime();
+
+    // Get the last RECENT_MS Tasks for this list.
+    // RECENT_MS : Last 24 hrs of Tasks
+    const RECENT_MS = 24 * 60 * 60 * 1000; // 86,400,000 ms
+    const now = Date.now();
+    const completedAt = new Date(t.completed_at).getTime();
     return now - completedAt < RECENT_MS;
   });
 
@@ -98,6 +70,7 @@ return (
       tasks={activeTasks}
       emptyMessage="No active tasks"
       onComplete={markComplete}
+      onFail={markFailed}
       className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
     />
 
@@ -105,7 +78,6 @@ return (
       title="Recent Tasks"
       tasks={recentTasks}
       emptyMessage="No recent tasks"
-      // onUndo={undoTask} // optional callback for recent tasks
       className="flex-1 md:flex-[1_1_0%] bg-pink-50/60"
     />
   </div>
