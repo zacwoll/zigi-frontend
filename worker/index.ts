@@ -1,78 +1,103 @@
-import { z } from "zod";
+import { fromHono } from "chanfana";
+import { Hono } from "hono";
+import { UserCreate } from "./endpoints/userCreate";
+import { UserList } from "./endpoints/userList";
+import { UserFetch } from "./endpoints/userFetch";
+import { UserDelete } from "./endpoints/userDelete";
+import { TaskCreate } from "./endpoints/taskCreate";
+import { TaskList } from "./endpoints/taskList";
+import { TaskListAll } from "./endpoints/taskListAll";
+import { TaskDelete } from "./endpoints/taskDelete";
+import { TaskUpdate } from "./endpoints/taskUpdate";
+import { TransactionListAll } from "./endpoints/transactionListAll";
+import { UserBalanceAdjustment } from "./endpoints/userBalanceAdjustment";
+import { SubtaskUpdate } from "./endpoints/subtaskUpdate";
 
-export const SubtaskModel = z.object({
-  id: z.string().uuid(),
-  task_id: z.string().uuid(),
-  title: z.string(),
-  description: z.string().nullable().optional(),
-  success_points: z.number().int(),
-  failure_points: z.number().int(),
-  status: z.enum(["pending", "in-progress", "completed", "failed", "expired"]),
-  completed_at: z.string().datetime().nullable().optional(),
-  expires_at: z.string().datetime().nullable().optional(),
+// Start a Hono app
+const app = new Hono<{ Bindings: Env }>();
+
+// Setup OpenAPI registry
+const openapi = fromHono(app, {
+  docs_url: "/",
 });
 
-export const TaskModel = z.object({
-  id: z.string().uuid(),
-  user_id: z.string().uuid(),
-  title: z.string(),
-  description: z.string().nullable().optional(),
-  success_points: z.number().int(),
-  failure_points: z.number().int(),
-  status: z.enum(["pending", "in-progress", "completed", "failed", "expired"]),
-  created_at: z.string().datetime(),
-  completed_at: z.string().datetime().nullable().optional(),
-  expires_at: z.string().datetime().nullable().optional(),
-  subtasks: z.array(SubtaskModel).optional(),
-});
+// Register OpenAPI endpoints
 
-// Define the schema for your API response
-const TasksResponseSchema = z.object({
-  success: z.literal(true),
-  tasks: z.array(TaskModel),
-});
+// Create User Account endpoint
+openapi.get("/api/users", UserList);
+openapi.post("/api/users", UserCreate);
+openapi.get("/api/users/:id", UserFetch);
+openapi.delete("/api/users/:id", UserDelete);
+openapi.post("/api/user/:id/adjustment", UserBalanceAdjustment);
+
+// Task Endpoints
+openapi.get("/api/tasks", TaskListAll);
+openapi.get("/api/tasks/:id", TaskList);
+openapi.post("/api/tasks", TaskCreate);
+openapi.delete("/api/tasks/:task_id", TaskDelete);
+openapi.patch("/api/tasks/:task_id", TaskUpdate);
+openapi.patch("/api/tasks/:task_id/:subtask_id", SubtaskUpdate);
+
+// Transaction Endpoint
+openapi.get("/api/transactions", TransactionListAll);
+
+// Cron function to expire tasks
+async function expireTasks(env: Env) {
+  try {
+    // Set completed_at
+    const completed_at = new Date().toISOString();
+    const expireSubtasks = await env.prod_zigi_api
+      .prepare(
+        `
+		  UPDATE subtasks
+		  SET status = 'expired',
+			completed_at = ?
+		  WHERE expires_at IS NOT NULL
+			AND expires_at < ?
+			AND status NOT IN ('expired', 'completed', 'failed');
+		`,
+      )
+      .bind(completed_at, completed_at)
+      .run();
+    // Now run the expiration transaction on the subtasks
+    console.log("Expired subtasks updated", expireSubtasks);
+
+    const expireTasks = await env.prod_zigi_api
+      .prepare(
+        `
+		  UPDATE tasks
+		  SET status = 'expired',
+			completed_at = ?
+		  WHERE expires_at IS NOT NULL
+			AND expires_at < ?
+			AND status NOT IN ('expired', 'completed', 'failed');
+		`,
+      )
+      .bind(completed_at, completed_at)
+      .run();
+    // now run the expiration transaction on the tasks
+    console.log("Expired tasks updated", expireTasks);
+  } catch (err) {
+    console.error("Failed to update expired tasks", err);
+  }
+}
 
 export default {
-  async fetch(request) {
-    const url = new URL(request.url);
-    const path = url.pathname;
-    const method = request.method;
-
-    // Only handle the /api/tasks route
-    if (path === "/api/tasks" && method === "GET") {
-      try {
-        // Fetch tasks from your real API
-        const res = await fetch("https://zigi-api.zacwoll.workers.dev/tasks");
-        if (!res.ok) {
-          return new Response(`Error fetching tasks: ${res.status}`, {
-            status: res.status,
-          });
-        }
-        const data = await res.json();
-
-        // Validate the response using Zod
-        const parsed = TasksResponseSchema.safeParse(data);
-
-        if (!parsed.success) {
-          console.log("Validation of data failed");
-          return new Response(`API returned an error`, { status: 500 });
-        }
-
-        if (!parsed.data.success) {
-          console.log("API returned an error")
-          return new Response(`API returned an error`, { status: 500 });
-        }
-
-        const { tasks } = parsed.data;
-        return Response.json(tasks);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return new Response(`Failed to fetch tasks: ${message}`, {
-          status: 500,
-        });
-      }
+  /** this part manages cronjobs */
+  async scheduled(
+    controller: ScheduledController,
+    env: Env,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _ctx: ExecutionContext,
+  ) {
+    switch (controller.cron) {
+      case "*/5 * * * *":
+        // Every five minutes
+        console.log("Expiring tasks...");
+        await expireTasks(env);
+        break;
     }
-
-    return new Response(null, { status: 404 });
+    // console.log("Cron processed");
   },
-} satisfies ExportedHandler<Env>;
+  fetch: app.fetch,
+};
