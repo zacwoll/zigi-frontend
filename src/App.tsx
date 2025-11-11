@@ -17,22 +17,6 @@ function App() {
           <TaskBoard />
         </main>
 
-        {/* <div className="card">
-          <button
-            onClick={() => {
-              fetch("/api/")
-                .then((res) => res.json() as Promise<{ name: string }>)
-                .then((data) => setName(data.name));
-            }}
-            aria-label="get name"
-          >
-            Name from API is: {name}
-          </button>
-          <p>
-            Edit <code>worker/index.ts</code> to change the name
-          </p>
-        </div> */}
-
         {/* Footer */}
         <footer className="app-footer text-center text-slate-500 mt-2 text-lg md:text-xl">
           <p>Tasks are shown for 24 hours after completion or failure.</p>

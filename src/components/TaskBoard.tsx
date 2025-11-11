@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { type Task } from "../types";
+import { TaskModel, type Task } from "../types";
 import { TaskColumn } from "./TaskColumn";
 import { isComplete } from "../utils";
+import z from "zod";
+
+
+
+const TasksApiResponseSchema = z.object({
+  status: z.string(),
+  tasks: z.array(TaskModel),
+});
 
 // Tasks Component
 export const TaskBoard: React.FC = () => {
@@ -18,8 +26,15 @@ export const TaskBoard: React.FC = () => {
         return res.json();
       })
       .then((data) => {
-        console.log("Fetched tasks:", JSON.stringify(data, null, 2));
-        setTasks(data);
+        // console.log("Fetched tasks:", JSON.stringify(data, null, 2));
+        const parsed = TasksApiResponseSchema.parse(data);
+        console.log(parsed);
+        if (!parsed) {
+          console.error("API response validation failed");
+          setTasks([]);
+        } else {
+          setTasks(parsed.tasks);
+        }
         setLoading(false);
       })
       .catch((err) => {
