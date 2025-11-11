@@ -28,7 +28,7 @@ export const TaskBoard: React.FC = () => {
       .then((data) => {
         // console.log("Fetched tasks:", JSON.stringify(data, null, 2));
         const parsed = TasksApiResponseSchema.parse(data);
-        console.log(parsed);
+        console.log({parsed});
         if (!parsed) {
           console.error("API response validation failed");
           setTasks([]);
@@ -42,34 +42,6 @@ export const TaskBoard: React.FC = () => {
         setLoading(false);
       });
   }, []);
-
-  // Mark Task as completed
-  const markComplete = async (task_id: string) => {
-    try {
-      await fetch(`/api/tasks/${task_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "completed" }),
-      });
-    } catch {
-      // ignore
-    }
-    console.log(`${task_id} marked complete`);
-  };
-
-  // Mark Task as failed
-  const markFailed = async (task_id: string) => {
-    try {
-      await fetch(`/api/tasks/${task_id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "failed" }),
-      });
-    } catch {
-      // ignore
-    }
-    console.log(`${task_id} marked failed`);
-  };
 
   // Compute visible lists:
 
@@ -103,8 +75,6 @@ export const TaskBoard: React.FC = () => {
         title="Active Tasks"
         tasks={activeTasks}
         emptyMessage="No active tasks"
-        onComplete={markComplete}
-        onFail={markFailed}
         className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
       />
 

@@ -5,8 +5,6 @@ interface TaskColumnProps {
   title: string;
   tasks: Task[];
   emptyMessage?: string;
-  onComplete?: (task_id: string) => void;
-  onFail?: (task_id: string) => void;
   className?: string;
 }
 
@@ -14,7 +12,6 @@ export function TaskColumn({
   title,
   tasks,
   emptyMessage,
-  onComplete,
   className,
 }: TaskColumnProps) {
   return (
@@ -32,7 +29,7 @@ export function TaskColumn({
         <ul className="space-y-2">
           {tasks.map((t) => (
             <li key={t.id}>
-              <TaskCard task={t} onComplete={onComplete} />
+              <TaskCard task={t} />
             </li>
           ))}
         </ul>

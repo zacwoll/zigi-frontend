@@ -4,11 +4,65 @@ import { capitalize, isComplete } from "../utils";
 
 interface TaskCardProps {
 	task: Task;
-	onComplete?: (task_id: string) => void;
-	onFail ?: (task_id: string) => void;
 }
 
-export function TaskCard({ task, onComplete, onFail }: TaskCardProps) {
+// Mark Task as completed
+const markTaskComplete = async (task_id: string) => {
+  try {
+    await fetch(`/api/tasks/${task_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "completed" }),
+    });
+  } catch {
+    // ignore
+  }
+  console.log(`${task_id} marked complete`);
+};
+
+// Mark Task as failed
+const markTaskFailed = async (task_id: string) => {
+  try {
+    await fetch(`/api/tasks/${task_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "failed" }),
+    });
+  } catch {
+    // ignore
+  }
+  console.log(`${task_id} marked failed`);
+};
+
+// Mark Task as completed
+const markSubtaskComplete = async (task_id: string, subtask_id: string) => {
+  try {
+    await fetch(`/api/tasks/${task_id}/${subtask_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "completed" }),
+    });
+  } catch {
+    // ignore
+  }
+  console.log(`${task_id} marked complete`);
+};
+
+// Mark Task as failed
+const markSubtaskFailed = async (task_id: string, subtask_id: string) => {
+  try {
+    await fetch(`/api/tasks/${task_id}/${subtask_id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "failed" }),
+    });
+  } catch {
+    // ignore
+  }
+  console.log(`${task_id} marked failed`);
+};
+
+export function TaskCard({ task }: TaskCardProps) {
   // Task is in 'Recent Tasks' if complete
 	const isRecentTask = isComplete(task.status);
 
@@ -61,7 +115,7 @@ if (task.status === "completed") {
           <>
             <div className="flex gap-2">
               <button
-                onChange={() => onComplete?.(task.id)}
+                onChange={() => markTaskComplete(task.id)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition text-sm font-medium"
               >
                 <Check className="w-4 h-4" />
@@ -69,7 +123,7 @@ if (task.status === "completed") {
               </button>
 
               <button
-                onChange={() => onFail?.(task.id)}
+                onChange={() => markTaskFailed(task.id)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition text-sm font-medium"
               >
                 <X className="w-4 h-4" />
@@ -101,13 +155,13 @@ if (task.status === "completed") {
                 </span>
                 <div className="flex gap-2">
                   <button
-                    onClick={() => onComplete?.(subtask.id)}
+                    onClick={() => markSubtaskComplete(task.id, subtask.id)}
                     className="flex items-center gap-1 px-2 py-1 rounded bg-green-100 text-green-700 hover:bg-green-200 text-xs"
                   >
                     <Check className="w-3 h-3" />
                   </button>
                   <button
-                    onClick={() => onFail?.(subtask.id)}
+                    onClick={() => markSubtaskFailed(task.id, subtask.id)}
                     className="flex items-center gap-1 px-2 py-1 rounded bg-red-100 text-red-700 hover:bg-red-200 text-xs"
                   >
                     <X className="w-3 h-3" />
