@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { TaskModel, type Task } from "../types";
+import { TaskModel, type Task, type TaskStatus } from "../types";
 import { TaskColumn } from "./TaskColumn";
 import { isComplete } from "../utils";
 import z from "zod";
+import { updateSubtaskStatus, updateTaskStatus } from "../api";
+import { TaskActionsContext } from "./TaskActions";
 
 
 
@@ -17,8 +19,7 @@ export const TaskBoard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch tasks once on mount
-  useEffect(() => {
+  const fetchTasks = async () => {
     setLoading(true);
     fetch("/api/tasks")
       .then((res) => {
@@ -28,7 +29,7 @@ export const TaskBoard: React.FC = () => {
       .then((data) => {
         // console.log("Fetched tasks:", JSON.stringify(data, null, 2));
         const parsed = TasksApiResponseSchema.parse(data);
-        console.log({parsed});
+        console.log({ parsed });
         if (!parsed) {
           console.error("API response validation failed");
           setTasks([]);
@@ -41,6 +42,59 @@ export const TaskBoard: React.FC = () => {
         setError(err.message);
         setLoading(false);
       });
+  };
+
+  // Helper to update a task or a subtask
+const updateStatusLocally = (
+  taskId: string,
+  subtaskId: string | null,
+  status: TaskStatus
+) => {
+setTasks((prev) =>
+  prev.map(
+    (task) =>
+      task.id === taskId
+        ? {
+            ...task,
+            status: subtaskId ? task.status : status, // only update status for task
+            subtasks: task.subtasks?.map((st) =>
+              st.id === subtaskId ? { ...st, status } : st,
+            ),
+          }
+        : task, // leave other tasks untouched (same reference)
+  ),
+);
+
+};
+
+
+  const taskActions = {
+    markTaskComplete: async (taskId: string) => {
+    // update to complete locally
+      updateStatusLocally(taskId, null, "completed");
+      await updateTaskStatus(taskId, "completed");
+      await fetchTasks();
+    },
+    markTaskFailed: async (taskId: string) => {
+      updateStatusLocally(taskId, null, "failed");
+      await updateTaskStatus(taskId, "failed");
+      await fetchTasks();
+    },
+    markSubtaskComplete: async (taskId: string, subtaskId: string) => {
+      updateStatusLocally(taskId, subtaskId, "completed");
+      await updateSubtaskStatus(taskId, subtaskId, "completed");
+      await fetchTasks();
+    },
+    markSubtaskFailed: async (taskId: string, subtaskId: string) => {
+      updateStatusLocally(taskId, subtaskId, "failed");
+      await updateSubtaskStatus(taskId, subtaskId, "failed");
+      await fetchTasks();
+    },
+  };
+
+  // Fetch tasks once on mount
+  useEffect(() => {
+    fetchTasks();
   }, []);
 
   // Compute visible lists:
@@ -71,19 +125,21 @@ export const TaskBoard: React.FC = () => {
       id="tasks-container"
       className="flex flex-col md:flex-row grow gap-4 h-full max-w-[75%] w-full min-h-[80vh] bg-white shadow-xl rounded-2xl border border-slate-200 p-6 md:p-10"
     >
-      <TaskColumn
-        title="Active Tasks"
-        tasks={activeTasks}
-        emptyMessage="No active tasks"
-        className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
-      />
+      <TaskActionsContext.Provider value={taskActions}>
+        <TaskColumn
+          title="Active Tasks"
+          tasks={activeTasks}
+          emptyMessage="No active tasks"
+          className="flex-1 md:flex-[2_1_0%] flex flex-col bg-pink-50/60"
+        />
 
       <TaskColumn
         title="Recent Tasks"
         tasks={recentTasks}
         emptyMessage="No recent tasks"
         className="flex-1 md:flex-[1_1_0%] bg-pink-50/60"
-      />
+        />
+      </TaskActionsContext.Provider>
     </div>
   );
 };

@@ -1,88 +1,38 @@
-import type { Task } from "../types";
+import type { Task, TaskStatus } from "../types";
 import { Check, X } from "lucide-react";
 import { capitalize, isComplete } from "../utils";
+import { useTaskActions } from "./TaskActions";
 
 interface TaskCardProps {
 	task: Task;
 }
 
-// Mark Task as completed
-const markTaskComplete = async (task_id: string) => {
-  try {
-    await fetch(`/api/tasks/${task_id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "completed" }),
-    });
-  } catch {
-    // ignore
+const getCardBg = (status: TaskStatus) => {
+  switch (status) {
+    case "completed":
+      return "bg-green-100 dark:bg-green-900";
+    case "failed":
+      return "bg-red-100 dark:bg-red-900";
+    case "expired":
+      return "bg-gray-100 dark:bg-gray-700";
+    default:
+      return "bg-white dark:bg-gray-800";
   }
-  console.log(`${task_id} marked complete`);
-};
-
-// Mark Task as failed
-const markTaskFailed = async (task_id: string) => {
-  try {
-    await fetch(`/api/tasks/${task_id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "failed" }),
-    });
-  } catch {
-    // ignore
-  }
-  console.log(`${task_id} marked failed`);
-};
-
-// Mark Task as completed
-const markSubtaskComplete = async (task_id: string, subtask_id: string) => {
-  try {
-    await fetch(`/api/tasks/${task_id}/${subtask_id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "completed" }),
-    });
-  } catch {
-    // ignore
-  }
-  console.log(`${task_id} marked complete`);
-};
-
-// Mark Task as failed
-const markSubtaskFailed = async (task_id: string, subtask_id: string) => {
-  try {
-    await fetch(`/api/tasks/${task_id}/${subtask_id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "failed" }),
-    });
-  } catch {
-    // ignore
-  }
-  console.log(`${task_id} marked failed`);
-};
+}
 
 export function TaskCard({ task }: TaskCardProps) {
+console.log({task});
   // Task is in 'Recent Tasks' if complete
-	const isRecentTask = isComplete(task.status);
+	const isFinishedTask = isComplete(task.status);
+  const { markTaskComplete, markTaskFailed, markSubtaskComplete, markSubtaskFailed } = useTaskActions();
 
-let cardBg: string;
-if (task.status === "completed") {
-  cardBg = "bg-green-100 dark:bg-green-900";
-} else if (task.status === "failed") {
-  cardBg = "bg-red-100 dark:bg-red-900";
-} else if (task.status === "expired") {
-  cardBg = "bg-gray-100 dark:bg-gray-700";
-} else {
-  // active / in-progress tasks
-  cardBg = "bg-white dark:bg-gray-800";
-}
+  const cardBg = getCardBg(task.status);
 
 	let statusText = capitalize(task.status);
 	if (task.status === "completed") {
 		statusText += ` +${task.success_points}`;
 	} else if (task.status === "failed" || task.status === "expired") {
-		statusText += ` -${task.failure_points}`;
+		statusText += ` ${task.failure_points}`;
 	}
 
   return (
@@ -98,24 +48,24 @@ if (task.status === "completed") {
           </h3>
 
           {/* Show points to the right of the title for active tasks */}
-          {!isRecentTask && (
+          {!isFinishedTask && (
             <div className="flex gap-2 items-center">
               <span className="bg-green-100 text-green-800 rounded-full px-2 py-0.5 text-xs font-medium">
                 +{task.success_points}
               </span>
               <span className="bg-red-100 text-red-800 rounded-full px-2 py-0.5 text-xs font-medium">
-                -{task.failure_points}
+                {task.failure_points}
               </span>
             </div>
           )}
         </div>
 
-        {/* Done/Fail buttons */}
-        {!isRecentTask && (
+        {/* Done/Fail buttons show if incomplete */}
+        {!isFinishedTask && (
           <>
             <div className="flex gap-2">
               <button
-                onChange={() => markTaskComplete(task.id)}
+                onClick={() => markTaskComplete(task.id)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition text-sm font-medium"
               >
                 <Check className="w-4 h-4" />
@@ -123,7 +73,7 @@ if (task.status === "completed") {
               </button>
 
               <button
-                onChange={() => markTaskFailed(task.id)}
+                onClick={() => markTaskFailed(task.id)}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 transition text-sm font-medium"
               >
                 <X className="w-4 h-4" />
@@ -147,12 +97,14 @@ if (task.status === "completed") {
           {task.subtasks.map((subtask) => (
             <div
               key={subtask.id}
-              className="flex flex-col border border-gray-200 dark:border-gray-600 rounded-md p-2 bg-white dark:bg-gray-700"
+              className={`flex flex-col border border-gray-200 dark:border-gray-600 rounded-md p-2 ${getCardBg(subtask.status)} `}
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium text-gray-800 dark:text-gray-200">
                   {subtask.title}
                 </span>
+                {!isFinishedTask && !isComplete(subtask.status) && (
+                <>
                 <div className="flex gap-2">
                   <button
                     onClick={() => markSubtaskComplete(task.id, subtask.id)}
@@ -167,6 +119,8 @@ if (task.status === "completed") {
                     <X className="w-3 h-3" />
                   </button>
                 </div>
+                </>
+              )}
               </div>
               {subtask.description && (
                 <p className="text-gray-600 dark:text-gray-300 text-xs mt-1">
@@ -179,7 +133,7 @@ if (task.status === "completed") {
       )}
 
       {/* Status */}
-      {isRecentTask && (
+      {isFinishedTask && (
       <div className="flex items-center justify-between mt-2">
           <span className="py-1 font-semibold text-sm md:text-base">
             {statusText}

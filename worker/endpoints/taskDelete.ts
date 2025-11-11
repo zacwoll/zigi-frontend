@@ -25,7 +25,7 @@ export class TaskDelete extends OpenAPIRoute {
   };
 
   async handle(c: AppContext) {
-    console.log(`handling request ${c.req.path}`);
+    // console.log(`handling request ${c.req.path}`);
     // Get validated parameters
     const data = await this.getValidatedData<typeof this.schema>();
     const id = data.params.task_id;
